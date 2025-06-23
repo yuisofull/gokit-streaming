@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/yuisofull/gokitstreaming/endpoint"
 	"github.com/yuisofull/gokitstreaming/examples/simple/pb"
 	"github.com/yuisofull/gokitstreaming/transport"
 	"google.golang.org/grpc"
@@ -96,31 +97,45 @@ func NewStreamingServer(stream transportgrpc.StreamingHandler) *streamingServer 
 }
 
 // streamingEndpoint returns a StreamingEndpoint that processes incoming requests, echoes them, and handles errors and limits.
-func streamingEndpoint(logger log.Logger) transportgrpc.StreamingEndpoint {
-	return func(ctx context.Context, req <-chan interface{}) (<-chan transportgrpc.StreamMessage, error) {
-		resp := make(chan transportgrpc.StreamMessage)
+func streamingEndpoint(logger log.Logger) endpoint.StreamingEndpoint {
+	return func(ctx context.Context, req <-chan interface{}) (<-chan struct {
+		Data interface{}
+		Err  error
+	}, error) {
+		respCh := make(chan struct {
+			Data interface{}
+			Err  error
+		})
+
+		type resp struct {
+			Data interface{}
+			Err  error
+		}
+
 		go func() {
-			defer close(resp)
+			defer close(respCh)
 			for i := 0; i < 3; i++ {
 				r := <-req
 				msg, ok := r.(*Request)
 				if !ok {
-					resp <- transportgrpc.StreamMessage{Err: status.New(codes.InvalidArgument, "invalid message format").Err()}
+					respCh <- resp{Err: status.New(codes.InvalidArgument, "invalid request format").Err()}
 					return
 				}
 
 				svc := NewEchoService(logger)
 				res, err := svc.Echo(ctx, msg)
 				if err != nil {
-					resp <- transportgrpc.StreamMessage{Err: status.New(codes.Internal, err.Error()).Err()}
+					respCh <- resp{
+						Err: status.New(codes.Internal, fmt.Sprintf("error processing request: %v", err)).Err(),
+					}
 					return
 				}
-				resp <- transportgrpc.StreamMessage{Message: res}
+				respCh <- resp{Data: res}
 			}
-			resp <- transportgrpc.StreamMessage{Err: status.New(codes.ResourceExhausted, "Request limit exceeded.").Err()}
+			respCh <- resp{Err: status.New(codes.ResourceExhausted, "Request limit exceeded.").Err()}
 		}()
 
-		return resp, nil
+		return respCh, nil
 	}
 }
 
@@ -139,7 +154,7 @@ func decodeRequest(_ context.Context, req interface{}) (interface{}, error) {
 func encodeResponse(_ context.Context, resp interface{}) (interface{}, error) {
 	r, ok := resp.(*Response)
 	if !ok {
-		return nil, fmt.Errorf("expected *Response, got %T", resp)
+		return nil, fmt.Errorf("expected *Data, got %T", resp)
 	}
 	return &pb.Response{
 		Message: r.Message,

@@ -73,7 +73,7 @@ func main() {
 			close(waitc)
 			continue
 		}
-		resp := response.Message.(*Response)
+		resp := response.Data.(*Response)
 		logger.Log("msg", "Received response", "response", resp.Message)
 	}
 }
@@ -99,7 +99,7 @@ func encodeRequest(_ context.Context, req interface{}) (interface{}, error) {
 func decodeResponse(_ context.Context, resp interface{}) (interface{}, error) {
 	r, ok := resp.(*pb.Response)
 	if !ok {
-		return nil, fmt.Errorf("expected *pb.Response, got %T", resp)
+		return nil, fmt.Errorf("expected *pb.Data, got %T", resp)
 	}
 
 	return &Response{
