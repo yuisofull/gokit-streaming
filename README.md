@@ -1,10 +1,20 @@
 # Go Kit Streaming
 
-This repository provides bidirectional streaming support for [Go Kit](https://github.com/go-kit/kit), a toolkit for microservices in Go.
+This repository provides bidirectional streaming support for [Go Kit](https://github.com/go-kit/kit), a toolkit for
+microservices in Go.
 
 ## Overview
 
-Go Kit Streaming extends Go Kit with support for bidirectional streaming RPC using gRPC. It allows you to build streaming services using the same patterns and abstractions that Go Kit provides for request-response services.
+Go Kit Streaming extends Go Kit with support for bidirectional streaming RPC using gRPC. It allows you to build
+streaming services using the same patterns and abstractions that Go Kit provides for request-response services
+by creating a new Endpoint type specifically for streaming.
+
+```go
+type StreamingEndpoint func (context.Context, <-chan StreamingRequest) (<-chan StreamingResponse, error)
+```
+
+It provides a channel-based API that allows you to handle streaming requests and responses in a way that is idiomatic to
+Go's concurrency model.
 
 ## Features
 
