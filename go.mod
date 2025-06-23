@@ -1,4 +1,4 @@
-module github.com/yuisofull/gokit-grpc-streaming
+module github.com/yuisofull/gokit-streaming
 
 go 1.16
 

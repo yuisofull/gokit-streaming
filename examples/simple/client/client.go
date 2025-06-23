@@ -1,51 +1,16 @@
 package main
 
-// This is a simplified example that demonstrates how to use the streaming functionality.
-// In a real application, you would generate the protobuf code and implement the gRPC client.
-
 import (
 	"context"
 	"fmt"
-	"github.com/yuisofull/gokit-grpc-streaming/examples/simple/pb"
-	transportgrpc "github.com/yuisofull/gokit-grpc-streaming/transport/grpc"
+	"github.com/yuisofull/gokit-streaming/examples/simple/pb"
+	transportgrpc "github.com/yuisofull/gokit-streaming/transport/grpc"
 	"google.golang.org/grpc"
 	"os"
 	"time"
 
 	"github.com/go-kit/log"
 )
-
-// Request represents a request message
-type Request struct {
-	Message string
-}
-
-// Response represents a response message
-type Response struct {
-	Message string
-}
-
-// Encoders and decoders
-func encodeRequest(_ context.Context, req interface{}) (interface{}, error) {
-	r, ok := req.(*Request)
-	if !ok {
-		return nil, fmt.Errorf("expected *Request, got %T", req)
-	}
-	return &pb.Request{
-		Message: r.Message,
-	}, nil
-}
-
-func decodeResponse(_ context.Context, resp interface{}) (interface{}, error) {
-	r, ok := resp.(*pb.Response)
-	if !ok {
-		return nil, fmt.Errorf("expected *pb.Response, got %T", resp)
-	}
-
-	return &Response{
-		Message: r.Message,
-	}, nil
-}
 
 func main() {
 	logger := log.NewLogfmtLogger(os.Stderr)
@@ -111,4 +76,33 @@ func main() {
 		resp := response.Message.(*Response)
 		logger.Log("msg", "Received response", "response", resp.Message)
 	}
+}
+
+type Request struct {
+	Message string
+}
+
+type Response struct {
+	Message string
+}
+
+func encodeRequest(_ context.Context, req interface{}) (interface{}, error) {
+	r, ok := req.(*Request)
+	if !ok {
+		return nil, fmt.Errorf("expected *Request, got %T", req)
+	}
+	return &pb.Request{
+		Message: r.Message,
+	}, nil
+}
+
+func decodeResponse(_ context.Context, resp interface{}) (interface{}, error) {
+	r, ok := resp.(*pb.Response)
+	if !ok {
+		return nil, fmt.Errorf("expected *pb.Response, got %T", resp)
+	}
+
+	return &Response{
+		Message: r.Message,
+	}, nil
 }

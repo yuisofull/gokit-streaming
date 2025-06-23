@@ -1,12 +1,10 @@
 package main
 
-// This is a simplified example that demonstrates how to use the streaming functionality.
-
 import (
 	"context"
 	"fmt"
-	"github.com/yuisofull/gokit-grpc-streaming/examples/simple/pb"
-	"github.com/yuisofull/gokit-grpc-streaming/transport"
+	"github.com/yuisofull/gokit-streaming/examples/simple/pb"
+	"github.com/yuisofull/gokit-streaming/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,7 +12,7 @@ import (
 	"os"
 
 	"github.com/go-kit/log"
-	transportgrpc "github.com/yuisofull/gokit-grpc-streaming/transport/grpc"
+	transportgrpc "github.com/yuisofull/gokit-streaming/transport/grpc"
 )
 
 func main() {
