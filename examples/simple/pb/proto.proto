@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package simple;
+option go_package = "github.com/yuisofull/gokit-streaming/examples/simple/pb";
+
+service SimpleService {
+  rpc StreamingMethod (stream Request) returns (stream Response) {}
+}
+
+message Request {
+  string message = 1;
+}
+
+message Response {
+  string message = 1;
+}
