@@ -16,9 +16,9 @@ Go Kit Streaming extends Go Kit with support for bidirectional streaming RPC usi
 ## Installation
 
 ```bash
-go get github.com/yuisofull/gokit-streaming
+go get github.com/yuisofull/gokitstreaming
 ```
 
 ## Usage
 
-See the [examples](https://github.com/yuisofull/gokit-streaming/tree/main/examples/simple)
+See the [examples](https://github.com/yuisofull/gokitstreaming/tree/main/examples/simple)

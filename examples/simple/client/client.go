@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/yuisofull/gokit-streaming/examples/simple/pb"
-	transportgrpc "github.com/yuisofull/gokit-streaming/transport/grpc"
+	"github.com/yuisofull/gokitstreaming/examples/simple/pb"
+	transportgrpc "github.com/yuisofull/gokitstreaming/transport/grpc"
 	"google.golang.org/grpc"
 	"os"
 	"time"

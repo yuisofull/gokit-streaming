@@ -1,4 +1,4 @@
-module github.com/yuisofull/gokit-streaming
+module github.com/yuisofull/gokitstreaming
 
 go 1.16
 

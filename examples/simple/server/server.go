@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/yuisofull/gokit-streaming/examples/simple/pb"
-	"github.com/yuisofull/gokit-streaming/transport"
+	"github.com/yuisofull/gokitstreaming/examples/simple/pb"
+	"github.com/yuisofull/gokitstreaming/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,7 +12,7 @@ import (
 	"os"
 
 	"github.com/go-kit/log"
-	transportgrpc "github.com/yuisofull/gokit-streaming/transport/grpc"
+	transportgrpc "github.com/yuisofull/gokitstreaming/transport/grpc"
 )
 
 func main() {

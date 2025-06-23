@@ -9,7 +9,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/yuisofull/gokit-streaming/transport"
+	"github.com/yuisofull/gokitstreaming/transport"
 	"google.golang.org/grpc"
 )
 
