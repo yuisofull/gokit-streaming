@@ -48,16 +48,9 @@ func decodeResponse(_ context.Context, resp interface{}) (interface{}, error) {
 }
 
 func main() {
-	// Create a logger
 	logger := log.NewLogfmtLogger(os.Stderr)
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 	logger = log.With(logger, "caller", log.DefaultCaller)
-
-	// In a real application, you would:
-	// 1. Create a gRPC connection
-	// 2. Create a streaming client
-	// 3. Get the streaming endpoint
-	// 4. Send requests and receive responses
 
 	// Create a gRPC connection
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
