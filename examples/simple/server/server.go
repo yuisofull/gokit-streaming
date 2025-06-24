@@ -19,16 +19,14 @@ import (
 func main() {
 	logger := log.NewLogfmtLogger(os.Stderr)
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-	logger = log.With(logger, "caller", log.DefaultCaller)
+	logger = log.With(logger, "caller", log.Caller(5))
 
 	server := transportgrpc.NewStreamingServer(
 		streamingEndpoint(logger),
 		decodeRequest,
 		encodeResponse,
 		pb.Request{},
-		transportgrpc.StreamingServerErrorHandler(transport.ErrorHandlerFunc(func(ctx context.Context, err error) {
-			logger.Log("err", err)
-		})),
+		transportgrpc.StreamingServerErrorHandler(NewErrorHandler(logger)),
 	)
 
 	stream := NewStreamingServer(server)
@@ -153,4 +151,10 @@ func encodeResponse(_ context.Context, resp interface{}) (interface{}, error) {
 	return &pb.Response{
 		Message: r.Message,
 	}, nil
+}
+
+func NewErrorHandler(logger log.Logger) transport.ErrorHandler {
+	return transport.ErrorHandlerFunc(func(ctx context.Context, err error) {
+		logger.Log("err", err)
+	})
 }
