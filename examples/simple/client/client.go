@@ -35,18 +35,15 @@ func main() {
 		pb.SimpleService_ServiceDesc,
 	)
 
-	//Get the streaming endpoint
 	endpoint := client.StreamingEndpoint()
 
-	// Create a channel for requests
 	requests := make(chan interface{})
 
-	// Create a context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Call the endpoint
-	responses, err := endpoint(ctx, requests)
+	responses, errFunc, err := endpoint(ctx, requests)
 	if err != nil {
 		logger.Log("err", err)
 		os.Exit(1)
@@ -66,15 +63,21 @@ func main() {
 		}
 	}()
 
-	// Process responses
-	for response := range responses {
-		if response.Err != nil {
-			logger.Log("err", response.Err)
-			close(waitc)
-			continue
+	for {
+		resp, ok := <-responses
+		// If the stream is aborted or closed, we check if there is an error
+		if !ok {
+			if err := errFunc(); err != nil {
+				logger.Log("err", err)
+			}
+			return
 		}
-		resp := response.Data.(*Response)
-		logger.Log("msg", "Received response", "response", resp.Message)
+		response, ok := resp.(*Response)
+		if !ok {
+			logger.Log("err", fmt.Errorf("expected *Response, got %T", resp))
+			return
+		}
+		logger.Log("response", response.Message)
 	}
 }
 

@@ -120,10 +120,7 @@ func StreamingClientOnTrailer(onTrailer ...ClientStreamTrailerResponseFunc) Stre
 // The returned endpoint accepts a channel of requests and returns a channel of responses,
 // managing the underlying gRPC stream operations transparently.
 func (c *StreamingClient) StreamingEndpoint() endpoint.StreamingEndpoint {
-	return func(ctx context.Context, reqCh <-chan interface{}) (<-chan struct {
-		Data interface{}
-		Err  error
-	}, error) {
+	return func(ctx context.Context, reqCh <-chan interface{}) (<-chan interface{}, func() error, error) {
 
 		var err error
 		// Execute finalizer functions when the endpoint completes
@@ -146,42 +143,30 @@ func (c *StreamingClient) StreamingEndpoint() endpoint.StreamingEndpoint {
 
 		ctx = metadata.NewOutgoingContext(ctx, *md)
 
-		// Create the gRPC stream
 		stream, err := c.client.NewStream(ctx, &c.serviceDesc.Streams[0], c.method)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		type resp struct {
-			Data interface{}
-			Err  error
-		}
-
-		respCh := make(chan struct {
-			Data interface{}
-			Err  error
-		})
+		respCh := make(chan interface{})
+		var streamErr error
 
 		// Goroutine to handle sending requests
 		go func() {
-			defer func() {
-				if err := stream.CloseSend(); err != nil {
-					respCh <- resp{Err: err}
-					return
-				}
-			}()
+			defer stream.CloseSend()
+
 			for req := range reqCh {
 				msg, err := c.enc(ctx, req)
 				if err != nil {
-					respCh <- resp{Err: err}
+					streamErr = err
 					return
 				}
 				if err := stream.SendMsg(msg); err != nil {
 					if err == io.EOF {
-						// If the stream is closed, we can exit gracefully.
 						return
 					}
-					respCh <- resp{Err: err}
+					streamErr = err
+					return
 				}
 			}
 		}()
@@ -194,7 +179,7 @@ func (c *StreamingClient) StreamingEndpoint() endpoint.StreamingEndpoint {
 
 			// Process stream headers
 			if header, err = stream.Header(); err != nil {
-				respCh <- resp{Err: err}
+				streamErr = err
 				return
 			}
 
@@ -206,7 +191,6 @@ func (c *StreamingClient) StreamingEndpoint() endpoint.StreamingEndpoint {
 			for {
 				msgPtr := reflect.New(c.grpcResp).Interface()
 				if err := stream.RecvMsg(msgPtr); err != nil {
-					// Process stream trailers when the stream ends
 					trailer = stream.Trailer()
 					for _, f := range c.onTrailer {
 						ctx = f(ctx, &trailer)
@@ -214,20 +198,22 @@ func (c *StreamingClient) StreamingEndpoint() endpoint.StreamingEndpoint {
 					if err == io.EOF {
 						return
 					}
-					respCh <- resp{Err: err}
+					streamErr = err
 					return
 				}
 
 				decoded, err := c.dec(ctx, msgPtr)
 				if err != nil {
-					respCh <- resp{Err: err}
+					streamErr = err
 					return
 				}
-				respCh <- resp{Data: decoded}
+				respCh <- decoded
 			}
 		}()
 
-		return respCh, nil
+		return respCh, func() error {
+			return streamErr
+		}, nil
 	}
 }
 
@@ -373,7 +359,7 @@ func (s *StreamingServer) ServeGRPCStream(ctx context.Context, stream grpc.Serve
 	}()
 
 	// Call the business logic endpoint
-	respCh, err := s.endpoint(ctx, reqCh)
+	respCh, errFunc, err := s.endpoint(ctx, reqCh)
 	if err != nil {
 		s.errorHandler.Handle(ctx, err)
 		return ctx, err
@@ -405,14 +391,16 @@ func (s *StreamingServer) ServeGRPCStream(ctx context.Context, stream grpc.Serve
 			return ctx, err
 		case resp, ok := <-respCh:
 			if !ok {
+				if errFunc != nil {
+					if err := errFunc(); err != nil {
+						s.errorHandler.Handle(ctx, err)
+						return ctx, err
+					}
+				}
 				return ctx, nil
 			}
-			if resp.Err != nil {
-				s.errorHandler.Handle(ctx, resp.Err)
-				return ctx, resp.Err
-			}
 
-			encoded, err := s.enc(ctx, resp.Data)
+			encoded, err := s.enc(ctx, resp)
 			if err != nil {
 				s.errorHandler.Handle(ctx, err)
 				return ctx, err

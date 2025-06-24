@@ -98,44 +98,38 @@ func NewStreamingServer(stream transportgrpc.StreamingHandler) *streamingServer 
 
 // streamingEndpoint returns a StreamingEndpoint that processes incoming requests, echoes them, and handles errors and limits.
 func streamingEndpoint(logger log.Logger) endpoint.StreamingEndpoint {
-	return func(ctx context.Context, req <-chan interface{}) (<-chan struct {
-		Data interface{}
-		Err  error
-	}, error) {
-		respCh := make(chan struct {
-			Data interface{}
-			Err  error
-		})
+	return func(ctx context.Context, req <-chan interface{}) (<-chan interface{}, func() error, error) {
+		respCh := make(chan interface{}, 1)
 
-		type resp struct {
-			Data interface{}
-			Err  error
-		}
-
+		var streamErr error
 		go func() {
 			defer close(respCh)
 			for i := 0; i < 3; i++ {
-				r := <-req
+				r, ok := <-req
+				// The stream can be closed by the client, so we check if the channel is still open.
+				if !ok {
+					return
+				}
 				msg, ok := r.(*Request)
 				if !ok {
-					respCh <- resp{Err: status.New(codes.InvalidArgument, "invalid request format").Err()}
+					streamErr = status.Errorf(codes.InvalidArgument, "expected *Request, got %T", r)
 					return
 				}
 
 				svc := NewEchoService(logger)
 				res, err := svc.Echo(ctx, msg)
 				if err != nil {
-					respCh <- resp{
-						Err: status.New(codes.Internal, fmt.Sprintf("error processing request: %v", err)).Err(),
-					}
+					streamErr = status.Errorf(codes.Internal, "error processing request: %v", err)
 					return
 				}
-				respCh <- resp{Data: res}
+				respCh <- res
 			}
-			respCh <- resp{Err: status.New(codes.ResourceExhausted, "Request limit exceeded.").Err()}
+			streamErr = status.New(codes.ResourceExhausted, "Request limit exceeded.").Err()
 		}()
 
-		return respCh, nil
+		return respCh, func() error {
+			return streamErr
+		}, nil
 	}
 }
 
