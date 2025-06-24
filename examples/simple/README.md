@@ -1,7 +1,4 @@
 # Simple Streaming Example
-
-This directory contains a simple example of how to use the Go Kit Streaming library for bidirectional streaming with gRPC.
-
 ## Overview
 
 The example demonstrates how to:
@@ -65,12 +62,3 @@ The client implementation demonstrates:
 - How to handle errors
 
 The client sends 5 requests and processes the responses, including handling any errors.
-
-## Next Steps
-
-To modify this example for your own use:
-
-1. Update the proto.proto file with your service definition
-2. Generate the protobuf code
-3. Modify the server and client implementations to match your service
-4. Run the server and client
