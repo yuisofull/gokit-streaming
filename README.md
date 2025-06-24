@@ -24,8 +24,6 @@ Go's concurrency model.
 
 - Bidirectional streaming support for gRPC
 - Channel-based API for easy integration with Go's concurrency model
-- Support for middleware, error handling, and other Go Kit features
-- Compatible with standard Go Kit patterns and abstractions
 
 ## Installation
 
