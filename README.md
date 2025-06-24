@@ -10,11 +10,7 @@ streaming services using the same patterns and abstractions that Go Kit provides
 by creating a new Endpoint type specifically for streaming.
 
 ```go
-type StreamingEndpoint func (ctx context.Context, request <-chan interface{}) (response <-chan struct {
-    Data interface{}
-    Err  error
-}, err error)
-
+type StreamingEndpoint func(ctx context.Context, request <-chan interface{}) (response <-chan interface{}, Err func() error, err error)
 ```
 
 It provides a channel-based API that allows you to handle streaming requests and responses in a way that is idiomatic to
