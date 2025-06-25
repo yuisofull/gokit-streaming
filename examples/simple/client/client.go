@@ -49,7 +49,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	waitc := make(chan struct{})
+	waitc := make(chan struct{}) // Channel to signal when the streaming is done
+
 	// Send requests
 	go func() {
 		defer close(requests)
@@ -63,6 +64,7 @@ func main() {
 		}
 	}()
 
+	defer close(waitc) // Signal completion for the request goroutine
 	for {
 		resp, ok := <-responses
 		// If the stream is aborted or closed, we check if there is an error
