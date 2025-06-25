@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"io"
 	"reflect"
+	"sync"
 
 	"github.com/yuisofull/gokitstreaming/transport"
 	"google.golang.org/grpc"
@@ -118,18 +119,27 @@ func StreamingClientOnTrailer(onTrailer ...ClientStreamTrailerResponseFunc) Stre
 
 // StreamingEndpoint returns a StreamingEndpoint that handles the gRPC streaming communication.
 // The returned endpoint accepts a channel of requests and returns a channel of responses,
-// managing the underlying gRPC stream operations transparently.
+// along with a function to handle error when the response channel is closed, if any.
 func (c *StreamingClient) StreamingEndpoint() endpoint.StreamingEndpoint {
 	return func(ctx context.Context, reqCh <-chan interface{}) (<-chan interface{}, func() error, error) {
+		var (
+			streamErr error
+			once      sync.Once
+			mu        sync.Mutex
+		)
 
-		var err error
-		// Execute finalizer functions when the endpoint completes
-		if c.finalizer != nil {
-			defer func() {
-				for _, f := range c.finalizer {
-					f(ctx, err)
-				}
-			}()
+		setErr := func(err error) {
+			once.Do(func() {
+				mu.Lock()
+				defer mu.Unlock()
+				streamErr = err
+			})
+		}
+
+		getErr := func() error {
+			mu.Lock()
+			defer mu.Unlock()
+			return streamErr
 		}
 
 		// Add method name to context for middleware usage
@@ -149,70 +159,75 @@ func (c *StreamingClient) StreamingEndpoint() endpoint.StreamingEndpoint {
 		}
 
 		respCh := make(chan interface{})
-		var streamErr error
 
-		// Goroutine to handle sending requests
+		// Sending goroutine
 		go func() {
 			defer stream.CloseSend()
 
 			for req := range reqCh {
 				msg, err := c.enc(ctx, req)
 				if err != nil {
-					streamErr = err
+					setErr(err)
 					return
 				}
 				if err := stream.SendMsg(msg); err != nil {
 					if err == io.EOF {
 						return
 					}
-					streamErr = err
+					setErr(err)
 					return
 				}
 			}
 		}()
 
-		// Goroutine to handle receiving responses
+		// Receiving goroutine
 		go func() {
-			defer close(respCh)
+			defer func() {
+				close(respCh)
+				if c.finalizer != nil {
+					for _, f := range c.finalizer {
+						f(ctx, getErr())
+					}
+				}
+			}()
 
-			var header, trailer metadata.MD
-
-			// Process stream headers
-			if header, err = stream.Header(); err != nil {
-				streamErr = err
+			// Handle stream headers
+			header, err := stream.Header()
+			if err != nil {
+				setErr(err)
 				return
 			}
-
 			for _, f := range c.onHeader {
 				ctx = f(ctx, &header)
 			}
 
-			// Receive messages from the stream
+			// Receive loop
 			for {
 				msgPtr := reflect.New(c.grpcResp).Interface()
 				if err := stream.RecvMsg(msgPtr); err != nil {
-					trailer = stream.Trailer()
+					trailer := stream.Trailer()
 					for _, f := range c.onTrailer {
 						ctx = f(ctx, &trailer)
 					}
 					if err == io.EOF {
 						return
 					}
-					streamErr = err
+					setErr(err)
 					return
 				}
 
 				decoded, err := c.dec(ctx, msgPtr)
 				if err != nil {
-					streamErr = err
+					setErr(err)
 					return
 				}
+
 				respCh <- decoded
 			}
 		}()
 
 		return respCh, func() error {
-			return streamErr
+			return getErr()
 		}, nil
 	}
 }
